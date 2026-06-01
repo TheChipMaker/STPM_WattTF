@@ -223,3 +223,27 @@ bool STPM_WattTF::begin(const StpmVoltageConfig& vConfig,
 
     return true;
 }
+
+// ===========================================================================
+// RMS measurements
+//
+// Register STPM_REG_V1_C1_RMS (0x48) packs both RMS values into one 32-bit
+// word (datasheet row 36):
+//   - bits [14:0]  : voltage RMS (15-bit unsigned)
+//   - bits [31:15] : current RMS (17-bit unsigned)
+// Each raw count is scaled by its computed LSB to give engineering units.
+// ===========================================================================
+
+float STPM_WattTF::readVoltageRMS()
+{
+    uint32_t raw = stpmReadRegister32(_cs, _syn, STPM_REG_V1_C1_RMS);
+    uint32_t rawV = raw & 0x7FFF;            // lower 15 bits
+    return (float)(rawV * _lsbV);
+}
+
+float STPM_WattTF::readCurrentRMS()
+{
+    uint32_t raw = stpmReadRegister32(_cs, _syn, STPM_REG_V1_C1_RMS);
+    uint32_t rawI = (raw >> 15) & 0x1FFFF;   // upper 17 bits
+    return (float)(rawI * _lsbI);
+}
