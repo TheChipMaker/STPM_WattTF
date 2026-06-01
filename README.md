@@ -169,7 +169,7 @@ gain. This library computes those factors for you from the component values
 you provide — so the same code gives correct readings on any board, as long as
 you describe that board's hardware.
 
-![STPM32 analog front-end schematic](docs/analog-frontend.png)
+![STPM32 analog front-end schematic](https://raw.githubusercontent.com/TheChipMaker/STPM_WattTF/main/docs/analog-frontend.png)
 
 There are three things to configure: the **voltage divider**, the **current
 sensor (CT)**, and the **gain**. You can also bypass the computation entirely
