@@ -8,7 +8,7 @@
     "url": "https://github.com/TheChipMaker/STPM_WattTF.git"
   },
   "authors": [
-    { "name": "Abu Nabil", "url": "https://github.com/TheChipMaker" }
+    { "name": "Abu Nabil", "email": "thechipmaker1@gmail.com", "url": "https://github.com/TheChipMaker" }
   ],
   "license": "MIT",
   "frameworks": "arduino",
