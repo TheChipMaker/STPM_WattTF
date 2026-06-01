@@ -2,7 +2,7 @@
 
 # STPM_WattTF
 
-<img src="docs/stpm32.png" alt="STPM32 energy metering IC" width="300">
+<img src="https://raw.githubusercontent.com/TheChipMaker/STPM_WattTF/main/docs/stpm32.png" alt="STPM32 energy metering IC" width="300">
 
 [![PlatformIO Registry](https://badges.registry.platformio.org/packages/thechipmaker/library/STPM_WattTF.svg)](https://registry.platformio.org/libraries/thechipmaker/STPM_WattTF)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
