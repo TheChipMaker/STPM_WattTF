@@ -10,3 +10,6 @@
 # OS junk
 .DS_Store
 Thumbs.db
+
+# Packed library archives
+*.tar.gz
