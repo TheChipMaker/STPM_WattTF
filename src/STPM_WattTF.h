@@ -150,6 +150,9 @@ public:
     float readApparentRMSPower();   // [VA]
     float readApparentVectPower();  // [VA]
 
+    float readTruePowerFactor();          // unitless, -1..+1
+    float readDisplacementPowerFactor();  // unitless, -1..+1
+
     // ----- Computed scaling factors (for inspection / debugging) ----------
     double voltageLSB() const { return _lsbV; }
     double currentLSB() const { return _lsbI; }

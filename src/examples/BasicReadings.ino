@@ -64,7 +64,10 @@ void loop() {
   Serial.print(" W  Pf: ");   Serial.print(pf, 1);
   Serial.print(" W  Q: ");    Serial.print(q, 1);
   Serial.print(" var  S: ");  Serial.print(s, 1);
-  Serial.println(" VA");
+  Serial.print(" VA");
+  Serial.print("   PF(true): "); Serial.print(meter.readTruePowerFactor(), 3);
+  Serial.print("  PF(disp): ");  Serial.print(meter.readDisplacementPowerFactor(), 3);
+  Serial.println();
 
   delay(1000);
 }

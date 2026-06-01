@@ -310,3 +310,40 @@ float STPM_WattTF::readApparentVectPower()
     int32_t  v   = stpmSignExtend29(raw);
     return (float)(v * _lsbP);
 }
+
+// ===========================================================================
+// Power factor
+//
+// Two definitions, both from the datasheet (section 8.4.4):
+//   - True power factor (TPF)         = active power / apparent RMS power
+//                                       (includes harmonics; the "real" PF)
+//   - Displacement power factor (DPF) = fundamental power / apparent
+//                                       vectorial power (fundamental only)
+//
+// These are computed from the already-scaled power readings, so they carry
+// the sign of the active power (a negative PF indicates export). Because the
+// LSB cancels in the ratio, the result is independent of calibration scaling.
+//
+// Guard against divide-by-zero at no load: if the denominator is ~0, return
+// 0.0 rather than producing inf/NaN.
+// ===========================================================================
+
+float STPM_WattTF::readTruePowerFactor()
+{
+    float p = readActivePower();
+    float s = readApparentRMSPower();
+    if (fabsf(s) < 1e-6f) {
+        return 0.0f;
+    }
+    return p / s;
+}
+
+float STPM_WattTF::readDisplacementPowerFactor()
+{
+    float pf = readFundamentalPower();
+    float sv = readApparentVectPower();
+    if (fabsf(sv) < 1e-6f) {
+        return 0.0f;
+    }
+    return pf / sv;
+}
