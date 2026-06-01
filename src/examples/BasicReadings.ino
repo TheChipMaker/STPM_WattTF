@@ -51,14 +51,20 @@ void setup() {
 }
 
 void loop() {
-  float v = meter.readVoltageRMS();
-  float i = meter.readCurrentRMS();
+  float v  = meter.readVoltageRMS();
+  float i  = meter.readCurrentRMS();
+  float p  = meter.readActivePower();
+  float pf = meter.readFundamentalPower();
+  float q  = meter.readReactivePower();
+  float s  = meter.readApparentRMSPower();
 
-  Serial.print("Vrms: ");
-  Serial.print(v, 2);
-  Serial.print(" V    Irms: ");
-  Serial.print(i, 3);
-  Serial.println(" A");
+  Serial.print("Vrms: ");  Serial.print(v, 2);
+  Serial.print(" V  Irms: "); Serial.print(i, 3);
+  Serial.print(" A  P: ");    Serial.print(p, 1);
+  Serial.print(" W  Pf: ");   Serial.print(pf, 1);
+  Serial.print(" W  Q: ");    Serial.print(q, 1);
+  Serial.print(" var  S: ");  Serial.print(s, 1);
+  Serial.println(" VA");
 
   delay(1000);
 }

@@ -247,3 +247,66 @@ float STPM_WattTF::readCurrentRMS()
     uint32_t rawI = (raw >> 15) & 0x1FFFF;   // upper 17 bits
     return (float)(rawI * _lsbI);
 }
+
+// ===========================================================================
+// Power measurements
+//
+// Power registers are 29-bit SIGNED values (datasheet section 8.4.1 and
+// Table 13, "Power register normalized"): bit 28 is the sign bit, bits [27:0]
+// are the magnitude. A negative result means power flowing back to the grid
+// (export / regeneration), per datasheet section 8.4.5.
+//
+// We read the 32-bit register, keep the low 29 bits, and sign-extend from
+// bit 28 so the value carries its correct sign before scaling by the power
+// LSB. This is more correct than taking the absolute value: it preserves
+// direction, which matters for solar/export and bidirectional metering.
+// ===========================================================================
+
+// Extract a signed 29-bit power value from a raw 32-bit register read.
+static int32_t stpmSignExtend29(uint32_t raw)
+{
+    raw &= 0x1FFFFFFF;             // keep bits [28:0]
+    if (raw & 0x10000000) {        // bit 28 set -> negative
+        // Subtract 2^29 to sign-extend into a normal signed int32.
+        return (int32_t)raw - 0x20000000;
+    }
+    return (int32_t)raw;
+}
+
+float STPM_WattTF::readActivePower()
+{
+    uint32_t raw = stpmReadRegister32(_cs, _syn, STPM_REG_PH1_ACTIVE_POWER);
+    int32_t  v   = stpmSignExtend29(raw);
+    return (float)(v * _lsbP);
+}
+
+float STPM_WattTF::readFundamentalPower()
+{
+    uint32_t raw = stpmReadRegister32(_cs, _syn, STPM_REG_PH1_FUND_POWER);
+    int32_t  v   = stpmSignExtend29(raw);
+    return (float)(v * _lsbP);
+}
+
+float STPM_WattTF::readReactivePower()
+{
+    uint32_t raw = stpmReadRegister32(_cs, _syn, STPM_REG_PH1_REACTIVE_POWER);
+    int32_t  v   = stpmSignExtend29(raw);
+    return (float)(v * _lsbP);
+}
+
+float STPM_WattTF::readApparentRMSPower()
+{
+    // Apparent power is a magnitude (Vrms * Irms), so it is non-negative by
+    // definition; we still read it through the same 29-bit field for
+    // consistency. (Datasheet section 8.4.4.)
+    uint32_t raw = stpmReadRegister32(_cs, _syn, STPM_REG_PH1_APPARENT_RMS_POWER);
+    int32_t  v   = stpmSignExtend29(raw);
+    return (float)(v * _lsbP);
+}
+
+float STPM_WattTF::readApparentVectPower()
+{
+    uint32_t raw = stpmReadRegister32(_cs, _syn, STPM_REG_PH1_APPARENT_VECT_POWER);
+    int32_t  v   = stpmSignExtend29(raw);
+    return (float)(v * _lsbP);
+}
