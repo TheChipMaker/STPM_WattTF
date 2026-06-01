@@ -41,6 +41,14 @@ static const uint8_t STPM_REG_DSP_CR1 = 0x00;
 //          reference-frequency (50/60 Hz) selection. Default 0x000004E0.
 static const uint8_t STPM_REG_DSP_CR3 = 0x04;
 
+// Row 4  - DSP control register 5 (DSP_CR5). Low 12 bits hold CHV1, the
+//          primary VOLTAGE calibration register. Default 0x800 (mid-scale).
+static const uint8_t STPM_REG_DSP_CR5 = 0x08;
+
+// Row 5  - DSP control register 6 (DSP_CR6). Low 12 bits hold CHC1, the
+//          primary CURRENT calibration register. Default 0x800 (mid-scale).
+static const uint8_t STPM_REG_DSP_CR6 = 0x0A;
+
 // Row 12 - Digital front-end control register 1 (DFE_CR1). Holds the primary
 //          current-channel gain selection GAIN1[1:0] in bits [27:26].
 //          Default 0x0F270327 (gain field defaults to 0x3 = x16).

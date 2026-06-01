@@ -153,6 +153,20 @@ public:
     float readTruePowerFactor();          // unitless, -1..+1
     float readDisplacementPowerFactor();  // unitless, -1..+1
 
+    // ----- Calibration (single-point, datasheet 9.2.1) --------------------
+    // Apply a known reference value, then call these. They read the chip's
+    // averaged raw output, compute the calibrator, and write it. Require a
+    // calibrated reference source/meter. Return false on bad input.
+    bool calibrateVoltage(float trueVoltage, uint16_t samples = 100);
+    bool calibrateCurrent(float trueCurrent, uint16_t samples = 100);
+
+    // Raw 12-bit calibrator access, so the application can persist the values
+    // (e.g. to NVS) and restore them on boot without re-running calibration.
+    uint16_t getVoltageCalibrator() const;
+    uint16_t getCurrentCalibrator() const;
+    void setVoltageCalibrator(uint16_t cal12);
+    void setCurrentCalibrator(uint16_t cal12);
+
     // ----- Computed scaling factors (for inspection / debugging) ----------
     double voltageLSB() const { return _lsbV; }
     double currentLSB() const { return _lsbI; }
@@ -172,6 +186,12 @@ private:
     // Stored configuration
     StpmConstants _k;
 
+    // Calibration state and helpers
+    uint16_t _calV = 0x800;   // current voltage calibrator (default mid-scale)
+    uint16_t _calI = 0x800;   // current current calibrator (default mid-scale)
+    void readRawRMS(uint16_t samples, uint32_t& vAvg, uint32_t& iAvg);
+    void writeCalibrator(uint8_t readAddr, uint16_t cal12);
+    
     // Low-level SPI transport and helpers are added in the .cpp as we build
     // them (latch, read frame, write frame, etc.). Declared there to keep
     // this public header focused on the user-facing API.

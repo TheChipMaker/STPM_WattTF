@@ -347,3 +347,128 @@ float STPM_WattTF::readDisplacementPowerFactor()
     }
     return pf / sv;
 }
+
+// ===========================================================================
+// Calibration  (datasheet section 9.2.1, Tables 36 & 37)
+//
+// Single-point calibration corrects this specific board's component
+// tolerances and Vref drift. You apply a KNOWN reference voltage/current
+// (from a calibrated source or reference meter), tell the library the true
+// value, and it computes and writes the chip's calibrator register so that
+// future readings are correct.
+//
+// The calibrator registers (CHV1, CHC1) default to 0x800, which corresponds
+// to the calV = calI = 0.875 already used in the LSB formulas. Calibration
+// adjusts around that point within +-12.5%. Because the chip applies the
+// correction internally before we read the register, our LSB scaling does
+// NOT change after calibration -- it stays transparent.
+//
+// Persistence is intentionally NOT handled here: the library writes the
+// calibrator to the chip and exposes get/set of the raw 12-bit value so the
+// application can store it (e.g. in NVS) and restore it on boot.
+// ===========================================================================
+
+// Read the raw (unscaled) RMS counts from register 0x48, averaged over
+// 'samples' reads to reduce noise. Voltage is the low 15 bits, current the
+// upper 17 bits.
+void STPM_WattTF::readRawRMS(uint16_t samples, uint32_t& vAvg, uint32_t& iAvg)
+{
+    if (samples == 0) samples = 1;
+
+    uint64_t vSum = 0;
+    uint64_t iSum = 0;
+    for (uint16_t n = 0; n < samples; n++) {
+        uint32_t raw = stpmReadRegister32(_cs, _syn, STPM_REG_V1_C1_RMS);
+        vSum += (raw & 0x7FFF);
+        iSum += ((raw >> 15) & 0x1FFFF);
+        delay(2);   // a few ms between samples; RMS updates every 200 ms,
+                    // so this mainly de-correlates SPI noise, not the value
+    }
+    vAvg = (uint32_t)(vSum / samples);
+    iAvg = (uint32_t)(iSum / samples);
+}
+
+// Write a 12-bit calibrator value into a calibration register's low 12 bits,
+// preserving the other bits already in that register (which hold swell/sag
+// thresholds we are not touching). Reads the row first, replaces [11:0].
+void STPM_WattTF::writeCalibrator(uint8_t readAddr, uint16_t cal12)
+{
+    cal12 &= 0x0FFF;
+
+    // Read current 32-bit row contents so we preserve the upper bits.
+    uint32_t row = stpmReadRegister32(_cs, _syn, readAddr);
+    row = (row & ~0x00000FFFUL) | cal12;
+
+    // The calibrator is in the LOWER 16 bits of the row, so write the lower
+    // half (write address == read address). Send the new lower 16 bits.
+    uint16_t lower = (uint16_t)(row & 0xFFFF);
+    stpmSendFrame(_cs, readAddr, readAddr,
+                  (uint8_t)(lower & 0xFF),
+                  (uint8_t)(lower >> 8));
+}
+
+bool STPM_WattTF::calibrateVoltage(float trueVoltage, uint16_t samples)
+{
+    if (trueVoltage <= 0.0f) return false;
+
+    // Average the raw voltage count the chip currently reports.
+    uint32_t vAvg, iAvg;
+    readRawRMS(samples, vAvg, iAvg);
+    if (vAvg == 0) return false;
+
+    // Target raw count for this true voltage (datasheet Table 36):
+    //   XV = Vn * AV * calV * 2^15 / (Vref * (1 + R1/R2))
+    // We reconstruct (1 + R1/R2) from the stored voltage LSB instead of the
+    // raw resistors, since vLSB already encodes it:
+    //   vLSB = Vref*(1+R1/R2)/(calV*AV*2^15)  =>  XV = trueVoltage / vLSB
+    double XV = (double)trueVoltage / _lsbV;
+
+    // Calibrator (datasheet Table 37):  CHV = 14336 * (XV/VAV) - 12288
+    double chv = 14336.0 * (XV / (double)vAvg) - 12288.0;
+
+    // Clamp to the 12-bit register range.
+    if (chv < 0.0)    chv = 0.0;
+    if (chv > 4095.0) chv = 4095.0;
+
+    _calV = (uint16_t)(chv + 0.5);
+    writeCalibrator(STPM_REG_DSP_CR5, _calV);  // CHV1 lives in DSP_CR5
+    return true;
+}
+
+bool STPM_WattTF::calibrateCurrent(float trueCurrent, uint16_t samples)
+{
+    if (trueCurrent <= 0.0f) return false;
+
+    uint32_t vAvg, iAvg;
+    readRawRMS(samples, vAvg, iAvg);
+    if (iAvg == 0) return false;
+
+    // Target raw count (datasheet Table 36):  XI = trueCurrent / iLSB
+    // (same reasoning as voltage: iLSB already encodes AI, kS, kint, etc.)
+    double XI = (double)trueCurrent / _lsbI;
+
+    double chc = 14336.0 * (XI / (double)iAvg) - 12288.0;
+    if (chc < 0.0)    chc = 0.0;
+    if (chc > 4095.0) chc = 4095.0;
+
+    _calI = (uint16_t)(chc + 0.5);
+    writeCalibrator(STPM_REG_DSP_CR6, _calI);  // CHC1 lives in DSP_CR6
+    return true;
+}
+
+// ----- Raw calibrator get/set (for persistence by the application) --------
+
+uint16_t STPM_WattTF::getVoltageCalibrator() const { return _calV; }
+uint16_t STPM_WattTF::getCurrentCalibrator() const { return _calI; }
+
+void STPM_WattTF::setVoltageCalibrator(uint16_t cal12)
+{
+    _calV = cal12 & 0x0FFF;
+    writeCalibrator(STPM_REG_DSP_CR5, _calV);
+}
+
+void STPM_WattTF::setCurrentCalibrator(uint16_t cal12)
+{
+    _calI = cal12 & 0x0FFF;
+    writeCalibrator(STPM_REG_DSP_CR6, _calI);
+}
