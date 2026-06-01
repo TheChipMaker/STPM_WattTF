@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Arduino](https://img.shields.io/badge/Arduino-compatible-00979D?logo=arduino&logoColor=white)](https://www.arduino.cc/)
 [![ESP32](https://img.shields.io/badge/ESP32-tested-E7352C?logo=espressif&logoColor=white)](https://www.espressif.com/)
-![Version](https://img.shields.io/badge/version-0.2.1-blue)
+![Version](https://img.shields.io/badge/version-0.2.2-blue)
 
 </div>
 
@@ -22,7 +22,7 @@ totals. Scaling factors are computed from *your* board's hardware (voltage
 divider, CT ratio, gain) — or supplied directly — and the chip's single-point
 calibration is supported for high accuracy.
 
-> **Status — v0.2.1 (early but functional).**
+> **Status — v0.2.2 (early but functional).**
 > Target in this release: the single-channel **STPM32** with a
 > **current-transformer (CT)** sensor, on **ESP32**. The code is structured so
 > that shunt / Rogowski sensors and the dual-channel STPM33/34 can be added
@@ -65,7 +65,7 @@ itself (gain, etc.) over SPI.
 
 ## Compatibility
 
-| Item            | Supported in v0.2.1           | Planned                     |
+| Item            | Supported in v0.2.2           | Planned                     |
 |-----------------|-------------------------------|-----------------------------|
 | Chip            | STPM32 (single channel)       | STPM33 / STPM34 (2 channels)|
 | Current sensor  | Current transformer (CT)      | Shunt, Rogowski coil        |
@@ -89,7 +89,7 @@ From the PlatformIO Registry (add to your `platformio.ini`):
 
 ```ini
 lib_deps =
-    thechipmaker/STPM_WattTF@^0.2.1
+    thechipmaker/STPM_WattTF@^0.2.2
 ```
 
 Or install the latest development version straight from GitHub:
@@ -106,9 +106,9 @@ lib_deps =
     file://path/to/STPM_WattTF
 ```
 
-The `owner/name@^0.2.1` form pulls the published release and automatically
+The `owner/name@^0.2.2` form pulls the published release and automatically
 accepts compatible newer versions (0.2.x and later 0.x). Pin an exact version
-(`@0.2.1`) if you prefer to lock it.
+(`@0.2.2`) if you prefer to lock it.
 
 ### Arduino IDE
 
