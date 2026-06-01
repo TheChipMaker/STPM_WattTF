@@ -1,0 +1,62 @@
+#######################################
+# Syntax Coloring Map for STPM_WattTF
+#######################################
+
+#######################################
+# Datatypes / classes (KEYWORD1)
+#######################################
+
+STPM_WattTF	KEYWORD1
+StpmVoltageConfig	KEYWORD1
+StpmCurrentConfig	KEYWORD1
+StpmRawLSB	KEYWORD1
+StpmConstants	KEYWORD1
+StpmEnergyAccumulator	KEYWORD1
+StpmGain	KEYWORD1
+
+#######################################
+# Methods / functions (KEYWORD2)
+#######################################
+
+begin	KEYWORD2
+readVoltageRMS	KEYWORD2
+readCurrentRMS	KEYWORD2
+readActivePower	KEYWORD2
+readFundamentalPower	KEYWORD2
+readReactivePower	KEYWORD2
+readApparentRMSPower	KEYWORD2
+readApparentVectPower	KEYWORD2
+readTruePowerFactor	KEYWORD2
+readDisplacementPowerFactor	KEYWORD2
+updateEnergy	KEYWORD2
+readActiveEnergy	KEYWORD2
+readFundamentalEnergy	KEYWORD2
+readReactiveEnergy	KEYWORD2
+readApparentEnergy	KEYWORD2
+calibrateVoltage	KEYWORD2
+calibrateCurrent	KEYWORD2
+getVoltageCalibrator	KEYWORD2
+getCurrentCalibrator	KEYWORD2
+setVoltageCalibrator	KEYWORD2
+setCurrentCalibrator	KEYWORD2
+getActiveEnergyRaw	KEYWORD2
+getFundamentalEnergyRaw	KEYWORD2
+getReactiveEnergyRaw	KEYWORD2
+getApparentEnergyRaw	KEYWORD2
+setActiveEnergyRaw	KEYWORD2
+setFundamentalEnergyRaw	KEYWORD2
+setReactiveEnergyRaw	KEYWORD2
+setApparentEnergyRaw	KEYWORD2
+voltageLSB	KEYWORD2
+currentLSB	KEYWORD2
+powerLSB	KEYWORD2
+energyLSB	KEYWORD2
+
+#######################################
+# Constants / enum values (LITERAL1)
+#######################################
+
+X2	LITERAL1
+X4	LITERAL1
+X8	LITERAL1
+X16	LITERAL1

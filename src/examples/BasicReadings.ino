@@ -80,7 +80,9 @@ void loop()
   Serial.print(meter.readTruePowerFactor(), 3);
   Serial.print("  PF(disp): ");
   Serial.print(meter.readDisplacementPowerFactor(), 3);
-  Serial.println();
+  Serial.print("   E_active: ");
+  Serial.print(meter.readActiveEnergy(), 4);
+  Serial.println(" Wh");
 
   delay(1000);
 }
