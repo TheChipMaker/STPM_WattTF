@@ -105,3 +105,121 @@ static uint32_t stpmReadRegister32(uint8_t csPin, uint8_t synPin, uint8_t addr)
            ((uint32_t)b[2] << 16)  |
            ((uint32_t)b[3] << 24);
 }
+
+// ===========================================================================
+// Initialization
+// ===========================================================================
+
+// Run the STPM3x global startup reset (datasheet section 8.2.4, Figure 29):
+//   - drive EN low then high to power-cycle the digital domain,
+//   - issue three SYN pulses for a full global reset (config included),
+//   - a single CS pulse to complete the documented reset handshake.
+static void stpmGlobalReset(uint8_t csPin, uint8_t synPin, uint8_t enPin)
+{
+    // CS low during reset selects SPI mode at startup; SYN idles high.
+    digitalWrite(csPin, LOW);
+    digitalWrite(synPin, HIGH);
+
+    // Power-cycle the digital section via EN.
+    digitalWrite(enPin, LOW);
+    delay(50);
+    digitalWrite(enPin, HIGH);
+    delay(50);
+
+    // Return CS to its idle (high) state.
+    digitalWrite(csPin, HIGH);
+    delay(10);
+
+    // Three SYN pulses = global reset (1 pulse latches, 2 resets measurement,
+    // 3 resets configuration too). See datasheet section 8.6.1.
+    for (uint8_t i = 0; i < 3; i++) {
+        digitalWrite(synPin, LOW);
+        delayMicroseconds(4);
+        digitalWrite(synPin, HIGH);
+        delayMicroseconds(4);
+    }
+
+    // Single CS pulse to finish the documented startup handshake.
+    digitalWrite(csPin, LOW);
+    delayMicroseconds(4);
+    digitalWrite(csPin, HIGH);
+    delayMicroseconds(10);
+}
+
+bool STPM_WattTF::begin(const StpmVoltageConfig& vConfig,
+                        const StpmCurrentConfig& iConfig)
+{
+    // No raw overrides, default constants.
+    return begin(vConfig, iConfig, StpmRawLSB(), StpmConstants());
+}
+
+bool STPM_WattTF::begin(const StpmVoltageConfig& vConfig,
+                        const StpmCurrentConfig& iConfig,
+                        const StpmRawLSB& rawLSB,
+                        const StpmConstants& constants)
+{
+    _k = constants;
+
+    // ----- Pin directions -------------------------------------------------
+    pinMode(_cs, OUTPUT);
+    pinMode(_syn, OUTPUT);
+    pinMode(_en, OUTPUT);
+
+    // ----- Hardware reset + global reset ----------------------------------
+    stpmGlobalReset(_cs, _syn, _en);
+
+    // ----- Configure the chip ---------------------------------------------
+    // 1. Set the current-channel gain in DFE_CR1 (row 12, upper half -> write
+    //    address 0x19). The other default bits of the upper half (0x0F27) are
+    //    preserved; only the GAIN1 field [27:26] is changed.
+    {
+        const uint16_t upperDefault = 0x0F27;
+        uint16_t upper = (upperDefault & ~(0x3 << 10))
+                       | ((uint16_t)iConfig.gain << 10);
+        stpmSendFrame(_cs, 0x19, 0x19,
+                      (uint8_t)(upper & 0xFF),
+                      (uint8_t)(upper >> 8));
+    }
+
+    // 2. Disable CRC for v1 (US_REG1 lower half -> write address 0x24).
+    //    Frame 24_24_07_00 keeps the default polynomial 0x07 and clears the
+    //    CRC-enable bit. (Datasheet Table 28.)
+    stpmSendFrame(_cs, STPM_REG_US_REG1, STPM_REG_US_REG1, 0x07, 0x00);
+
+    // ----- Compute (or accept overridden) LSB scaling factors -------------
+    // Voltage RMS LSB (datasheet Table 14):
+    //   LSB_V = Vref * (1 + R1/R2) / (calV * AV * 2^15)
+    // where R1 = total series resistance (line + neutral legs), R2 = sense.
+    const double R1 = (double)vConfig.seriesLine + (double)vConfig.seriesNeutral;
+    const double R2 = (double)vConfig.senseR2;
+    const double dividerTerm = 1.0 + (R1 / R2);
+
+    // Current sensitivity for a CT (datasheet Table 13): kS = Rb / N  [V/A]
+    const double kS = (double)iConfig.burdenOhms / (double)iConfig.turnsRatio;
+
+    // Current gain AI as a number.
+    double AI = 2.0;
+    switch (iConfig.gain) {
+        case StpmGain::X2:  AI = 2.0;  break;
+        case StpmGain::X4:  AI = 4.0;  break;
+        case StpmGain::X8:  AI = 8.0;  break;
+        case StpmGain::X16: AI = 16.0; break;
+    }
+
+    // Computed values (datasheet Tables 13 and 14).
+    const double compV = _k.vref * dividerTerm / (_k.calV * _k.avGain * 32768.0);          // 2^15
+    const double compI = _k.vref / (_k.calI * AI * kS * _k.kint * 131072.0);               // 2^17
+    const double compP = (_k.vref * _k.vref) * dividerTerm
+                       / (_k.kint * _k.avGain * AI * kS * _k.calV * _k.calI * 268435456.0); // 2^28
+    const double compE = (_k.vref * _k.vref) * dividerTerm
+                       / (3600.0 * _k.dclkHz * _k.kint * _k.avGain * AI * kS
+                          * _k.calV * _k.calI * 131072.0);                                  // 2^17
+
+    // Apply overrides where provided (negative field => "compute it").
+    _lsbV = (rawLSB.voltageLSB >= 0.0) ? rawLSB.voltageLSB : compV;
+    _lsbI = (rawLSB.currentLSB >= 0.0) ? rawLSB.currentLSB : compI;
+    _lsbP = (rawLSB.powerLSB   >= 0.0) ? rawLSB.powerLSB   : compP;
+    _lsbE = (rawLSB.energyLSB  >= 0.0) ? rawLSB.energyLSB  : compE;
+
+    return true;
+}
