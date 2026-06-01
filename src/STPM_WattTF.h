@@ -25,11 +25,12 @@
 // Current-channel gain (datasheet Table 9, DFE_CR1 GAIN bits [27:26]).
 // The current preamplifier gain; voltage channel gain is fixed at x2.
 // ===========================================================================
-enum class StpmGain : uint8_t {
-    X2  = 0b00,   // +-300 mV full scale
-    X4  = 0b01,   // +-150 mV
-    X8  = 0b10,   // +-75 mV
-    X16 = 0b11    // +-37.5 mV  (chip power-on default)
+enum class StpmGain : uint8_t
+{
+    X2 = 0b00, // +-300 mV full scale
+    X4 = 0b01, // +-150 mV
+    X8 = 0b10, // +-75 mV
+    X16 = 0b11 // +-37.5 mV  (chip power-on default)
 };
 
 // ===========================================================================
@@ -56,10 +57,11 @@ enum class StpmGain : uint8_t {
 //     seriesNeutral = 3 * 133000.0   = 399000.0
 //     senseR2       = 470.0
 // ===========================================================================
-struct StpmVoltageConfig {
-    float seriesLine;     // total series resistance on the line leg [ohm]
-    float seriesNeutral;  // total series resistance on the neutral leg [ohm]
-    float senseR2;        // resistor across VIP-VIN [ohm]
+struct StpmVoltageConfig
+{
+    float seriesLine;    // total series resistance on the line leg [ohm]
+    float seriesNeutral; // total series resistance on the neutral leg [ohm]
+    float senseR2;       // resistor across VIP-VIN [ohm]
 };
 
 // ===========================================================================
@@ -76,10 +78,11 @@ struct StpmVoltageConfig {
 // (Shunt and Rogowski-coil sensor types are planned for a later release;
 //  this release supports CT only.)
 // ===========================================================================
-struct StpmCurrentConfig {
-    float turnsRatio;     // CT turns ratio N (e.g. 2000 for a 2000:1 CT)
-    float burdenOhms;     // burden resistor Rb across the CT secondary [ohm]
-    StpmGain gain;        // current preamplifier gain (AI)
+struct StpmCurrentConfig
+{
+    float turnsRatio; // CT turns ratio N (e.g. 2000 for a 2000:1 CT)
+    float burdenOhms; // burden resistor Rb across the CT secondary [ohm]
+    StpmGain gain;    // current preamplifier gain (AI)
 };
 
 // ===========================================================================
@@ -95,11 +98,24 @@ struct StpmCurrentConfig {
 //   powerLSB   : watts  per LSB of a power register
 //   energyLSB  : watt-h per LSB of an energy register
 // ===========================================================================
-struct StpmRawLSB {
+struct StpmRawLSB
+{
     double voltageLSB = -1.0;
     double currentLSB = -1.0;
-    double powerLSB   = -1.0;
-    double energyLSB  = -1.0;
+    double powerLSB = -1.0;
+    double energyLSB = -1.0;
+};
+
+// ===========================================================================
+// Per-energy-type accumulation state. Each of the four energy types keeps its
+// own previous raw counter value, its 64-bit running total, and a first-read
+// flag (so the first sample only seeds prevRaw instead of adding a delta).
+// ===========================================================================
+struct StpmEnergyAccumulator
+{
+    uint32_t prevRaw = 0;
+    int64_t total64 = 0;
+    bool firstRead = true;
 };
 
 // ===========================================================================
@@ -109,19 +125,21 @@ struct StpmRawLSB {
 // exposed so an advanced user can adjust them (e.g. a measured Vref, or a
 // non-default calibrator). Defaults are the datasheet values for a CT meter.
 // ===========================================================================
-struct StpmConstants {
-    double vref     = 1.18;       // internal voltage reference [V]
-    double calV     = 0.875;      // voltage calibrator mid-value
-    double calI     = 0.875;      // current calibrator mid-value
-    double avGain    = 2.0;       // fixed voltage-channel gain (AV)
-    double kint     = 1.0;        // integrator gain (1.0 for CT/shunt)
-    double dclkHz   = 7812.5;     // DSP sample/accumulation rate [Hz]
+struct StpmConstants
+{
+    double vref = 1.18;     // internal voltage reference [V]
+    double calV = 0.875;    // voltage calibrator mid-value
+    double calI = 0.875;    // current calibrator mid-value
+    double avGain = 2.0;    // fixed voltage-channel gain (AV)
+    double kint = 1.0;      // integrator gain (1.0 for CT/shunt)
+    double dclkHz = 7812.5; // DSP sample/accumulation rate [Hz]
 };
 
 // ===========================================================================
 // Main driver class.
 // ===========================================================================
-class STPM_WattTF {
+class STPM_WattTF
+{
 public:
     // Pins: chip-select, sync, and enable/reset (matches the STPM SPI wiring).
     STPM_WattTF(uint8_t csPin, uint8_t synPin, uint8_t enPin);
@@ -130,28 +148,28 @@ public:
     // Computes LSBs from the supplied hardware configs, resets and configures
     // the chip (sets gain, disables CRC for v1), and prepares it for reading.
     // Returns true on success. SPI.begin() must be called by the sketch first.
-    bool begin(const StpmVoltageConfig& vConfig,
-               const StpmCurrentConfig& iConfig);
+    bool begin(const StpmVoltageConfig &vConfig,
+               const StpmCurrentConfig &iConfig);
 
     // Same as above, but with raw-LSB overrides and/or custom constants.
-    bool begin(const StpmVoltageConfig& vConfig,
-               const StpmCurrentConfig& iConfig,
-               const StpmRawLSB& rawLSB,
-               const StpmConstants& constants = StpmConstants());
+    bool begin(const StpmVoltageConfig &vConfig,
+               const StpmCurrentConfig &iConfig,
+               const StpmRawLSB &rawLSB,
+               const StpmConstants &constants = StpmConstants());
 
     // ----- Instantaneous measurements ------------------------------------
     // Each returns a freshly-read, scaled value in engineering units.
-    float readVoltageRMS();   // [V]
-    float readCurrentRMS();   // [A]
+    float readVoltageRMS(); // [V]
+    float readCurrentRMS(); // [A]
 
-    float readActivePower();        // [W]
-    float readFundamentalPower();   // [W]
-    float readReactivePower();      // [var]
-    float readApparentRMSPower();   // [VA]
-    float readApparentVectPower();  // [VA]
+    float readActivePower();       // [W]
+    float readFundamentalPower();  // [W]
+    float readReactivePower();     // [var]
+    float readApparentRMSPower();  // [VA]
+    float readApparentVectPower(); // [VA]
 
-    float readTruePowerFactor();          // unitless, -1..+1
-    float readDisplacementPowerFactor();  // unitless, -1..+1
+    float readTruePowerFactor();         // unitless, -1..+1
+    float readDisplacementPowerFactor(); // unitless, -1..+1
 
     // ----- Calibration (single-point, datasheet 9.2.1) --------------------
     // Apply a known reference value, then call these. They read the chip's
@@ -170,8 +188,26 @@ public:
     // ----- Computed scaling factors (for inspection / debugging) ----------
     double voltageLSB() const { return _lsbV; }
     double currentLSB() const { return _lsbI; }
-    double powerLSB()   const { return _lsbP; }
-    double energyLSB()  const { return _lsbE; }
+    double powerLSB() const { return _lsbP; }
+    double energyLSB() const { return _lsbE; }
+
+    // ----- Energy (call updateEnergy() regularly; readers are cheap) -------
+    void updateEnergy(); // sample + accumulate all four totals
+
+    double readActiveEnergy();      // [Wh]   net (negative = export)
+    double readFundamentalEnergy(); // [Wh]
+    double readReactiveEnergy();    // [varh]
+    double readApparentEnergy();    // [VAh]
+
+    // Raw int64 accumulator access, for the application to persist/restore.
+    int64_t getActiveEnergyRaw() const;
+    int64_t getFundamentalEnergyRaw() const;
+    int64_t getReactiveEnergyRaw() const;
+    int64_t getApparentEnergyRaw() const;
+    void setActiveEnergyRaw(int64_t v);
+    void setFundamentalEnergyRaw(int64_t v);
+    void setReactiveEnergyRaw(int64_t v);
+    void setApparentEnergyRaw(int64_t v);
 
 private:
     // Pins
@@ -187,11 +223,18 @@ private:
     StpmConstants _k;
 
     // Calibration state and helpers
-    uint16_t _calV = 0x800;   // current voltage calibrator (default mid-scale)
-    uint16_t _calI = 0x800;   // current current calibrator (default mid-scale)
-    void readRawRMS(uint16_t samples, uint32_t& vAvg, uint32_t& iAvg);
+    uint16_t _calV = 0x800; // current voltage calibrator (default mid-scale)
+    uint16_t _calI = 0x800; // current current calibrator (default mid-scale)
+    void readRawRMS(uint16_t samples, uint32_t &vAvg, uint32_t &iAvg);
     void writeCalibrator(uint8_t readAddr, uint16_t cal12);
-    
+
+    // Energy accumulation state (one per energy type)
+    StpmEnergyAccumulator _eActive;
+    StpmEnergyAccumulator _eFund;
+    StpmEnergyAccumulator _eReactive;
+    StpmEnergyAccumulator _eApparent;
+    void updateOneEnergy(uint8_t readAddr, StpmEnergyAccumulator &acc);
+
     // Low-level SPI transport and helpers are added in the .cpp as we build
     // them (latch, read frame, write frame, etc.). Declared there to keep
     // this public header focused on the user-facing API.
