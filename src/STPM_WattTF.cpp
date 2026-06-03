@@ -66,6 +66,26 @@ static void stpmSendFrame(uint8_t csPin,
     SPI.endTransaction();
 }
 
+// Send the one special 5-byte frame that disables CRC. The chip powers up with
+// CRC ENABLED, so this very first post-reset write must itself carry a valid
+// CRC byte to be accepted. The disable frame is fixed (24_24_07_00) and its
+// CRC-8 (poly 0x07, MSB-first over the 4 bytes) is 0x15 -- verified on
+// hardware. After this, CRC is off and all further frames are plain 4 bytes.
+static void stpmDisableCrc(uint8_t csPin)
+{
+    SPI.beginTransaction(STPM_SPI_SETTINGS);
+    digitalWrite(csPin, LOW);
+    delayMicroseconds(5);
+    SPI.transfer(0x24); // read addr (US_REG1)
+    SPI.transfer(0x24); // write addr (US_REG1 lower half)
+    SPI.transfer(0x07); // data LSB: keep CRC polynomial 0x07
+    SPI.transfer(0x00); // data MSB: clear CRC-enable bit
+    SPI.transfer(0x15); // CRC byte for this frame (required: CRC still on)
+    delayMicroseconds(5);
+    digitalWrite(csPin, HIGH);
+    SPI.endTransaction();
+}
+
 // Read a 32-bit register.
 //
 // Per the STPM3x protocol (datasheet section 8.6), reading is a two-step
@@ -170,22 +190,27 @@ bool STPM_WattTF::begin(const StpmVoltageConfig &vConfig,
     // ----- Hardware reset + global reset ----------------------------------
     stpmGlobalReset(_cs, _syn, _en);
 
-    // ----- Configure the chip ---------------------------------------------
-    // 1. Set the current-channel gain in DFE_CR1 (row 12, upper half -> write
-    //    address 0x19). The other default bits of the upper half (0x0F27) are
-    //    preserved; only the GAIN1 field [27:26] is changed.
+// ----- Configure the chip ---------------------------------------------
+    // 1. Disable CRC FIRST. The chip powers up with CRC enabled, expecting
+    //    5-byte frames; this special frame carries the required CRC byte so it
+    //    is accepted, after which all communication is plain 4-byte frames.
+    //    Without this, every subsequent write (including gain) is silently
+    //    rejected and the chip stays at its power-on gain default (x16).
+    stpmDisableCrc(_cs);
+    delayMicroseconds(20);
+
+    // 2. Set the current-channel gain in DFE_CR1 (row 12, upper half -> write
+    //    address 0x19). With CRC now off, this plain 4-byte write takes effect.
+    //    Only the GAIN1 field [27:26] is changed; other default bits (0x0F27)
+    //    are preserved.
     {
         const uint16_t upperDefault = 0x0F27;
         uint16_t upper = (upperDefault & ~(0x3 << 10)) | ((uint16_t)iConfig.gain << 10);
-        stpmSendFrame(_cs, 0x19, 0x19,
+        stpmSendFrame(_cs, 0x18, 0x19,
                       (uint8_t)(upper & 0xFF),
                       (uint8_t)(upper >> 8));
+        delayMicroseconds(20);
     }
-
-    // 2. Disable CRC for v1 (US_REG1 lower half -> write address 0x24).
-    //    Frame 24_24_07_00 keeps the default polynomial 0x07 and clears the
-    //    CRC-enable bit. (Datasheet Table 28.)
-    stpmSendFrame(_cs, STPM_REG_US_REG1, STPM_REG_US_REG1, 0x07, 0x00);
 
     // ----- Compute (or accept overridden) LSB scaling factors -------------
     // Voltage RMS LSB (datasheet Table 14):
