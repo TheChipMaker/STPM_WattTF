@@ -1,6 +1,6 @@
 {
   "name": "STPM_WattTF",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Driver for the STMicroelectronics STPM3x energy metering ICs. Read voltage, current, power, and energy from the STPM32 over SPI. Computes scaling (LSB) values from your board's hardware (voltage divider, CT ratio, gain) or accepts raw LSB overrides. Single-channel STPM32 supported in this release; structured for future STPM33/34 support.",
   "keywords": ["stpm32", "stpm3x", "energy", "metering", "power", "spi"],
   "repository": {
